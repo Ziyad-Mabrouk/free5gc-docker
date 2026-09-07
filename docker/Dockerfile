@@ -8,6 +8,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get -y install git gcc cmake autoconf libtool pkg-config libmnl-dev libyaml-dev apt-transport-https ca-certificates
 
+RUN apk add --no-cache tini
+
 RUN mkdir -p /tmp && cd /tmp && \
     git clone --recursive -b ${TAG} -j `nproc` https://github.com/free5gc/free5gc.git && \
     cd free5gc && \ 
@@ -29,6 +31,6 @@ RUN mkdir -p config/ log/ cert/
 
 # Copy executable and default certs
 COPY --from=builder /sbin/tini /sbin/tini
-COPY --from=builder /free5gc/${F5GC_MODULE} ./
-COPY --from=builder /free5gc/cert/${F5GC_MODULE}.pem ./cert/
-COPY --from=builder /free5gc/cert/${F5GC_MODULE}.key ./cert/
+COPY --from=builder /tmp/free5gc/${F5GC_MODULE} ./
+COPY --from=builder /tmp/free5gc/cert/${F5GC_MODULE}.pem ./cert/
+COPY --from=builder /tmp/free5gc/cert/${F5GC_MODULE}.key ./cert/

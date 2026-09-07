@@ -26,7 +26,7 @@ ARG DEBUG_TOOLS
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install debug tools ~ 100MB (if DEBUG_TOOLS is set to true)
-RUN if [ "$DEBUG_TOOLS" = "true" ] ; then apt-get update && apt-get install -y vim strace net-tools iputils-ping curl netcat tcpdump; fi
+RUN if [ "$DEBUG_TOOLS" = "true" ] ; then apt-get update && apt-get install -y vim strace net-tools iputils-ping curl netcat-openbsd tcpdump; fi
 
 # Install UPF dependencies
 # Note: bitnami/minideb ships a musl-compiled /sbin/tini which cannot run on Debian (glibc).
@@ -41,5 +41,5 @@ WORKDIR /free5gc
 RUN mkdir -p config/ log/
 
 # Copy executable
-COPY --from=builder /free5gc/${F5GC_MODULE} ./
+COPY --from=builder /tmp/free5gc/${F5GC_MODULE} ./
 COPY --from=builder /go/gtp5g-tunnel ./gtp5g-tunnel
