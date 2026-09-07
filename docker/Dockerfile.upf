@@ -1,0 +1,50 @@
+FROM golang:1.26.2-trixie AS builder
+
+ARG F5GC_MODULE=upf
+ARG TAG
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get -y install git gcc cmake autoconf libtool pkg-config libmnl-dev libyaml-dev apt-transport-https ca-certificates
+
+RUN git clone https://github.com/free5gc/go-gtp5gnl.git && mkdir "go-gtp5gnl/bin" && \
+    cd "go-gtp5gnl/cmd/gogtp5g-tunnel" &&  go build -o "${GOPATH}/gtp5g-tunnel" . && \
+    cd -
+
+RUN mkdir -p /tmp && cd /tmp && \
+    git clone --recursive -b ${TAG} -j `nproc` https://github.com/free5gc/free5gc.git && \
+    cd free5gc && \ 
+    make ${F5GC_MODULE}
+
+# Get Free5GC
+COPY free5gc/ $GOPATH/src/free5gc/
+
+RUN cd $GOPATH/src/free5gc \
+    && make ${F5GC_MODULE}
+
+FROM bitnami/minideb:trixie
+
+ARG F5GC_MODULE=upf
+ARG DEBUG_TOOLS
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install debug tools ~ 100MB (if DEBUG_TOOLS is set to true)
+RUN if [ "$DEBUG_TOOLS" = "true" ] ; then apt-get update && apt-get install -y vim strace net-tools iputils-ping curl netcat tcpdump; fi
+
+# Install UPF dependencies
+# Note: bitnami/minideb ships a musl-compiled /sbin/tini which cannot run on Debian (glibc).
+# Install tini via apt (glibc-compiled) and overwrite the broken musl binary.
+RUN apt-get update \
+    && apt-get install -y tini libmnl0 libyaml-0-2 iproute2 iptables \
+    && ln -sf /usr/bin/tini /sbin/tini \
+    && apt-get clean
+
+# Set working dir
+WORKDIR /free5gc
+RUN mkdir -p config/ log/
+
+# Copy executable
+COPY --from=builder /free5gc/${F5GC_MODULE} ./
+COPY --from=builder /go/gtp5g-tunnel ./gtp5g-tunnel

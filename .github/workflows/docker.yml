@@ -1,0 +1,129 @@
+name: Docker Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      images:
+        description: "Select which Free5GC Docker images to build (comma-separated: amf, smf, upf, all)"
+        required: true
+        default: "all"
+      tag:
+        description: "Tag for the Free5GC Docker images"
+        required: true
+        default: "v4.2.3"
+
+env:
+  GHCR_USER: ziyad-mabrouk
+  DEBUG_TOOLS: true
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - NAME: free5gc-amf
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: amf
+
+          - NAME: free5gc-ausf
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: ausf
+
+          - NAME: free5gc-bsf
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: bsf
+
+          - NAME: free5gc-chf
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: chf
+
+          - NAME: free5gc-nef
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: nef
+
+          - NAME: free5gc-nrf
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: nrf
+
+          - NAME: free5gc-nssf
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: nssf
+
+          - NAME: free5gc-pcf
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: pcf
+
+          - NAME: free5gc-smf
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: smf
+
+          - NAME: free5gc-udm
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: udm
+
+          - NAME: free5gc-udr
+            DOCKERFILE: ./docker/Dockerfile
+            CONTEXT: ./docker
+            KEY: udr
+
+          - NAME: free5gc-upf
+            DOCKERFILE: ./docker/Dockerfile.upf
+            CONTEXT: ./docker
+            KEY: upf
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Determine if this image should build
+        id: filter
+        run: |
+          INPUT="${{ github.event.inputs.images }}"
+          KEY="${{ matrix.KEY }}"
+          if [[ "$INPUT" == "all" ]] || [[ "$INPUT" == *"$KEY"* ]]; then
+            echo "build=true" >> $GITHUB_OUTPUT
+          else
+            echo "build=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log in to GHCR
+        if: steps.filter.outputs.build == 'true'
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ env.GHCR_USER }}" --password-stdin
+
+      - name: Build ${{ matrix.NAME }}
+        if: steps.filter.outputs.build == 'true'
+        run: |
+          docker build \
+            -t ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ env.TAG }} \
+            -f ${{ matrix.DOCKERFILE }} \
+            --build-arg F5GC_MODULE=${{ matrix.KEY }} \
+            --build-arg TAG=${{ github.event.inputs.tag }} \
+            --build-arg DEBUG_TOOLS=${{ env.DEBUG_TOOLS }} \
+            ${{ matrix.CONTEXT }}
+
+      - name: Push ${{ matrix.NAME }}
+        if: steps.filter.outputs.build == 'true'
+        run: docker push ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ env.TAG }}
+
+      - name: Skip build
+        if: steps.filter.outputs.build == 'false'
+        run: echo "Skipping ${{ matrix.NAME }} (not selected)."
+
+      - name: Log out
+        if: always()
+        run: docker logout ghcr.io
