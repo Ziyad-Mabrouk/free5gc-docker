@@ -109,7 +109,7 @@ jobs:
         if: steps.filter.outputs.build == 'true'
         run: |
           docker build \
-            -t ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ env.TAG }} \
+            -t ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ github.event.inputs.tag }} \
             -f ${{ matrix.DOCKERFILE }} \
             --build-arg F5GC_MODULE=${{ matrix.KEY }} \
             --build-arg TAG=${{ github.event.inputs.tag }} \
@@ -118,7 +118,7 @@ jobs:
 
       - name: Push ${{ matrix.NAME }}
         if: steps.filter.outputs.build == 'true'
-        run: docker push ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ env.TAG }}
+        run: docker push ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ github.event.inputs.tag }}
 
       - name: Skip build
         if: steps.filter.outputs.build == 'false'
