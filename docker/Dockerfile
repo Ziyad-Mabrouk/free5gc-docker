@@ -13,11 +13,6 @@ RUN mkdir -p /tmp && cd /tmp && \
     cd free5gc && \ 
     make ${F5GC_MODULE}
 
-# Get Free5GC
-COPY free5gc/ $GOPATH/src/free5gc/
-
-RUN cd $GOPATH/src/free5gc \
-    && make ${F5GC_MODULE}
 
 # Alpine is used for debug purpose. You can use scratch for a smaller footprint.
 FROM alpine:3.15
